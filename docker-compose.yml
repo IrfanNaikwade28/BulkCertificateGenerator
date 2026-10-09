@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: certgen
+      POSTGRES_PASSWORD: certgen
+      POSTGRES_DB: certgen
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U certgen -d certgen"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://certgen:certgen@db:5432/certgen
+      STORAGE_DIR: /data/certificates
+      LOG_LEVEL: INFO
+      MAX_BATCH_SIZE: 100
+    volumes:
+      - certs:/data/certificates
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  certs:

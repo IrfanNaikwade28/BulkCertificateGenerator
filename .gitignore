@@ -1,0 +1,20 @@
+# Environment / secrets
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated certificates
+storage/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
