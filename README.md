@@ -47,12 +47,12 @@ PDF downloads.
   "event_name": "Python Workshop 2026",
   "recipients": [
     {
-      "name": "Aarav Mehta",
-      "email": "aarav.mehta@example.com"
+      "name": "Rahul Kakad",
+      "email": "rahul@example.com"
     },
     {
-      "name": "Diya Sharma",
-      "email": "diya.sharma@example.com"
+      "name": "Dhiraj Minche",
+      "email": "dhiraj@example.com"
     }
   ]
 }
