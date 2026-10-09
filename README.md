@@ -165,6 +165,140 @@ Run everything in containers instead:
 docker compose up --build   # API on http://localhost:8000, DB on 5432
 ```
 
+> `docker-compose.yml` is for **local development and tests only**. Production
+> does not use it or any local PostgreSQL container — see
+> [Deployment (Neon + Render)](#deployment-neon--render).
+
+## Deployment (Neon + Render)
+
+Production topology: **Render Web Service (Docker) + Neon PostgreSQL**.
+No local database, Redis, or Celery involved.
+
+### Environment variables
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `DATABASE_URL` | **Yes (production)** | local dev URL | Neon connection string. `postgres://` and `postgresql://` schemes are automatically normalized to SQLAlchemy's `postgresql+psycopg://`; query parameters such as `sslmode=require` are preserved. Set only in the Render dashboard — never committed. |
+| `PORT` | Set by Render | `8000` | Render injects its own port (default `10000`); the container binds `0.0.0.0:$PORT`. Locally defaults to 8000. |
+| `MAX_BATCH_SIZE` | No | `100` | Maximum recipients per job. |
+| `STORAGE_DIR` | No | `storage/certificates` | Internal PDF directory (set to `/app/storage/certificates` in `render.yaml`). Never exposed via the API. |
+| `LOG_LEVEL` | No | `INFO` | Python logging level. |
+
+`.env.example` contains only local development placeholders — no real
+credentials. Render environment variables are translated to Docker build args
+during image build; this Dockerfile defines no `ARG`, and `.dockerignore`
+excludes `.env`, so secrets never enter the image.
+
+### 1. Create the Neon database
+
+1. Create a project at neon.tech and a database (e.g. `certgen`).
+2. Copy the connection string from the dashboard. It looks like
+   `postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require` — treat it as a
+   secret. The app accepts it as-is (normalization happens in code).
+3. Neon endpoints allow all IP addresses by default, so no IP allowlist entry
+   is needed for Render.
+
+### 2. Configure Render
+
+Two equivalent options:
+
+**Option A — Render Blueprint (recommended):**
+
+1. Render Dashboard → **New → Blueprint** → connect this GitHub repository.
+2. Render detects `render.yaml` (free plan, Docker, health check `/health`).
+3. When prompted, paste your Neon connection string for `DATABASE_URL`
+   (`sync: false` — the value is stored only in Render, never in Git).
+4. Click **Apply**.
+
+**Option B — Web Service (manual):**
+
+1. Render Dashboard → **New → Web Service** → connect the repository.
+2. Settings: **Runtime: Docker**, **Dockerfile Path: `./Dockerfile`**,
+   **Instance Type: Free**, **Health Check Path: `/health`**.
+3. Add environment variables (see the table above), at minimum `DATABASE_URL`.
+4. Deploy.
+
+### 3. Run migrations against Neon
+
+Alembic reads the exact same `get_settings().database_url` as the application,
+so migrations always target the configured Neon database. Never use
+`Base.metadata.create_all()` — Alembic is the only schema mechanism.
+
+The container start command runs migrations **before** uvicorn serves traffic:
+
+```dockerfile
+alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+With Render's single instance (free plan) this executes exactly **once per
+deploy, before any request is served** — never concurrently from multiple
+workers.
+
+You can also run migrations explicitly (recommended before your first deploy,
+or any time you need a one-off run):
+
+```bash
+# From your machine, against Neon (run from the project root):
+DATABASE_URL='postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require' \
+  alembic upgrade head
+
+# Or inside the deployed container via Render Dashboard → Shell:
+alembic upgrade head
+```
+
+> **If you ever scale beyond one instance:** remove `alembic upgrade head`
+> from the Dockerfile `CMD` and run migrations as a single separate step
+> (Render **Pre Deploy Command**: `alembic upgrade head`, or a one-off shell
+> run) so multiple workers never run DDL concurrently.
+
+**Safe order for a fresh production setup:**
+
+1. Create the Neon database and copy its connection string.
+2. Run `alembic upgrade head` against Neon once (command above) → schema is
+   at head (`525c1946cc95` → `5d32a190fea2` on a fresh database).
+3. Create the Render service/Blueprint with `DATABASE_URL` set.
+4. Deploy; the container re-runs `alembic upgrade head` (a no-op) then starts
+   uvicorn.
+5. Verify `/health`, `/docs`, and a sample job.
+
+### 4. Verify the deployment
+
+```bash
+# Health (checks database connectivity; 503 if Neon is unreachable)
+curl https://YOUR-SERVICE.onrender.com/health
+# → {"status":"ok"}
+
+# Interactive API docs
+open https://YOUR-SERVICE.onrender.com/docs
+
+# Sample job
+curl -X POST https://YOUR-SERVICE.onrender.com/api/v1/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"certificate_title":"CERTIFICATE OF ACHIEVEMENT",
+       "event_name":"the program",
+       "recipients":[{"name":"Test User","email":"test@example.com"}]}'
+# → 202 {"job_id":"...","status":"pending","total_count":1}
+```
+
+### 5. Storage and background-task limitations (read before shipping)
+
+- **PDF storage is local and ephemeral on Render's free plan.**
+  Certificates are written under `STORAGE_DIR` inside the container. Any
+  redeploy, restart, or crash replaces that filesystem, so previously
+  generated PDFs disappear while their metadata remains in Neon. The download
+  endpoint then returns a graceful `404 Certificate file not available`
+  (never a path leak or 500). Job/certificate history, statuses, and counts
+  are unaffected because they live in Neon.
+  - Optional: attach a paid **persistent disk** mounted at `STORAGE_DIR` to
+    survive redeploys. Not configured in `render.yaml` to avoid paid
+    resources; add it only if you need durable PDFs.
+- **`BackgroundTasks` are in-process and not durable.** Jobs are queued in
+  memory: a restart or deploy mid-job leaves remaining certificates `pending`
+  forever (no retry/resume), and jobs are only processed by the instance that
+  accepted them. This is a documented design trade-off for the assignment —
+  it is **not** production-grade durability. A durable queue (DB-backed
+  worker or external job system) would be the upgrade path.
+
 ## Testing
 
 The suite expects the Compose database to be running (it uses the

@@ -1,0 +1,22 @@
+# Render Blueprint — safe defaults only:
+#   * No secrets in this file: DATABASE_URL is `sync: false`, so Render prompts
+#     for its value in the dashboard (or you set it there after creation).
+#   * No paid resources: free compute plan, no persistent disk attached.
+#   * Single instance by default, so the container's `alembic upgrade head`
+#     runs exactly once per deploy, before uvicorn serves traffic.
+services:
+  - type: web
+    name: bulk-certificate-generator
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste your Neon connection string in the Render dashboard
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MAX_BATCH_SIZE
+        value: "100"
+      - key: STORAGE_DIR
+        value: /app/storage/certificates
