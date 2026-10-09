@@ -24,9 +24,107 @@ PDF downloads.
 | **Health check** | <https://bulk-certificate-generator-vzzp.onrender.com/health> |
 | **Source code** | <https://github.com/IrfanNaikwade28/BulkCertificateGenerator> |
 
+
+## Try the live API in 2 minutes
+
+**No installation required.** Use the interactive Swagger page to test the deployed API in your browser.
+
+**Open Swagger UI:** <https://bulk-certificate-generator-vzzp.onrender.com/docs>
+
+> **First request may be slow:** Render's free instance can spin down after inactivity. Wait for the page or request to respond instead of repeatedly submitting the same job.
+
+### 1. Create a certificate job
+
+1. Open Swagger UI.
+2. Expand **`POST /api/v1/jobs`**.
+3. Click **Try it out**.
+4. Replace the request body with the example below.
+5. Click **Execute** and copy the `job_id` from the response.
+
+```json
+{
+  "certificate_title": "Certificate of Participation",
+  "event_name": "Python Workshop 2026",
+  "recipients": [
+    {
+      "name": "Aarav Mehta",
+      "email": "aarav.mehta@example.com"
+    },
+    {
+      "name": "Diya Sharma",
+      "email": "diya.sharma@example.com"
+    }
+  ]
+}
+```
+
+**Expected result:** `202 Accepted`, with a response similar to this:
+
+```json
+{
+  "job_id": "<copy-the-job-id-from-your-response>",
+  "status": "pending",
+  "total_count": 2
+}
+```
+
+The job ID above is a placeholder, not a real ID. Use the actual value returned by your request.
+
+### 2. Check job progress
+
+1. Expand **`GET /api/v1/jobs/{job_id}`**.
+2. Click **Try it out**.
+3. Paste your actual job ID into the `job_id` field.
+4. Click **Execute**.
+
+The job may initially be `pending` or `processing`. Execute this GET request again until the status is `completed` or `completed_with_errors`. A successful two-recipient run should show `succeeded_count: 2`, `failed_count: 0`, and `progress: 1.0`.
+
+### 3. List the generated certificates
+
+1. Expand **`GET /api/v1/jobs/{job_id}/certificates`**.
+2. Enter the same job ID, then click **Execute**.
+3. Copy a `certificate_id` from the `items` array.
+
+### 4. Inspect and download a certificate
+
+- Expand **`GET /api/v1/certificates/{certificate_id}`**, enter the certificate ID, and execute it to view metadata.
+- Expand **`GET /api/v1/certificates/{certificate_id}/download`**, enter the same certificate ID, and execute it to download the PDF.
+- A successful download returns **HTTP 200** with `Content-Type: application/pdf`.
+
+Repeat the metadata/download steps for the second certificate if you want to inspect both PDFs.
+
+### 5. Try request validation (optional)
+
+To confirm invalid input is rejected, expand **`POST /api/v1/jobs`** again and submit this body:
+
+```json
+{
+  "certificate_title": "Certificate of Participation",
+  "event_name": "Validation Demo",
+  "recipients": [
+    {
+      "name": "Invalid Email Example",
+      "email": "not-an-email"
+    }
+  ]
+}
+```
+
+**Expected result:** HTTP `422 Unprocessable Entity`. The request is rejected during validation, so it should not create a job or certificate rows.
+
+### What to explore
+
+- [ ] Create a job with your own certificate title and event name.
+- [ ] Check job status, progress, and success/failure counters.
+- [ ] List certificates and inspect their metadata.
+- [ ] Download and open a generated PDF.
+- [ ] Submit invalid input and observe the validation response.
+
+
 ## Table of contents
 
 - [Live demo](#live-demo)
+- [Try the live API in 2 minutes](#try-the-live-api-in-2-minutes)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Technology stack](#technology-stack)
