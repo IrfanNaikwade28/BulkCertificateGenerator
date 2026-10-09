@@ -1,21 +1,11 @@
 # Bulk Certificate Generator API
 
-A backend service built for the **AEREO SDE-Intern assignment**. Issuing
-certificates one by one does not scale: each recipient needs an individually
-addressed PDF, and a single bad record should not sink an entire batch. This
-API accepts one request containing many recipients, validates the batch up
-front, generates one PDF certificate per recipient as a **background job**,
-and exposes **job tracking with live progress**, per-certificate metadata, and
-PDF downloads.
+A backend service built for the **AEREO SDE-Intern assignment**. Issuing certificates one by one does not scale: each recipient needs an individually addressed PDF, and a single bad record should not sink an entire batch. This API accepts one request containing many recipients, validates the batch upfront, generates one PDF certificate per recipient as a **background job**, and exposes **job tracking with live progress**, per-certificate metadata, and PDF downloads.
 
-- **Asynchronous bulk processing** — `202 Accepted` immediately, work continues
-  in the background
-- **Validation before anything is written** — an invalid batch leaves no
-  partial rows
-- **Failure isolation** — one recipient's generation failure never stops the
-  rest of the batch
-- **Job + certificate tracking** — statuses, counters, timestamps, and a
-  `progress` fraction persisted in PostgreSQL
+- **Asynchronous bulk processing** — `202 Accepted` immediately, work continues in the background
+- **Validation before anything is written** — an invalid batch leaves no partial rows
+- **Failure isolation** — one recipient's generation failure never stops the rest of the batch
+- **Job + certificate tracking** — statuses, counters, timestamps, and a `progress` fraction persisted in PostgreSQL
 
 | | |
 |---|---|
@@ -23,7 +13,6 @@ PDF downloads.
 | **Swagger UI** | <https://bulk-certificate-generator-vzzp.onrender.com/docs> |
 | **Health check** | <https://bulk-certificate-generator-vzzp.onrender.com/health> |
 | **Source code** | <https://github.com/IrfanNaikwade28/BulkCertificateGenerator> |
-
 
 ## Try the live API in 2 minutes
 
@@ -47,12 +36,12 @@ PDF downloads.
   "event_name": "Python Workshop 2026",
   "recipients": [
     {
-      "name": "Rahul Kakad",
-      "email": "rahul@example.com"
+      "name": "Rohan Patil",
+      "email": "rohan.patil@example.com"
     },
     {
-      "name": "Dhiraj Minche",
-      "email": "dhiraj@example.com"
+      "name": "Ananya Deshmukh",
+      "email": "ananya.deshmukh@example.com"
     }
   ]
 }
@@ -120,7 +109,6 @@ To confirm invalid input is rejected, expand **`POST /api/v1/jobs`** again and s
 - [ ] Download and open a generated PDF.
 - [ ] Submit invalid input and observe the validation response.
 
-
 ## Table of contents
 
 - [Live demo](#live-demo)
@@ -146,75 +134,51 @@ To confirm invalid input is rejected, expand **`POST /api/v1/jobs`** again and s
 | Health check | <https://bulk-certificate-generator-vzzp.onrender.com/health> |
 | Source code | <https://github.com/IrfanNaikwade28/BulkCertificateGenerator> |
 
-The **`/health` endpoint checks database connectivity**: it runs `SELECT 1`
-against PostgreSQL and returns `200 {"status":"ok"}` when the database is
-reachable, or `503 {"detail":"Database unavailable"}` when it is not.
+The **`/health` endpoint checks database connectivity**: it runs `SELECT 1` against PostgreSQL and returns `200 {"status":"ok"}` when the database is reachable, or `503 {"detail":"Database unavailable"}` when it is not.
 
-> The service is deployed on Render's free plan, which suspends instances
-> after inactivity. The first request after idle may take roughly 30–60
-> seconds while the instance wakes (it can briefly answer `503`). Subsequent
-> requests respond normally.
+> The service is deployed on Render's free plan, which suspends instances after inactivity. The first request after idle may take roughly 30–60 seconds while the instance wakes (it can briefly answer `503`). Subsequent requests respond normally.
 
 ## Features
 
-- **Create bulk generation jobs** — `POST /api/v1/jobs` accepts a batch of
-  recipients plus optional event details, returns `202` with a UUID job ID.
-- **Validate event details and recipient data** — batch size limits, non-blank
-  names, well-formed emails, duplicate-email rejection, and length limits on
-  `certificate_title` / `event_name`. The whole batch is validated before any
-  row is written.
-- **Generate individual PDF certificates** — one predefined ReportLab
-  template; the job's `certificate_title` and `event_name` are rendered into
-  each certificate.
-- **Track job status, progress, successes, and failures** — per-job counters
-  (`processed`, `succeeded`, `failed`), a `progress` value from `0.0` to
-  `1.0`, and `created_at` / `started_at` / `finished_at` timestamps.
-- **Isolate failures per recipient** — a recipient whose PDF fails to render
-  is recorded as `failed` with a sanitized `error_code`; the remaining
-  recipients are still processed.
-- **List certificates with pagination and status filtering** — `page`,
-  `page_size` (max 200), and optional `status` query parameters.
-- **Retrieve certificate metadata** — including a `download_url`; internal
-  filesystem paths are never exposed.
-- **Download individual PDF files** — served as `application/pdf` with a
-  filename; `409` if the certificate is not ready yet.
-- **Persist job and certificate metadata in PostgreSQL** — all state survives
-  application restarts (local PostgreSQL in development, Neon in production).
-- **Run database migrations with Alembic** — two versioned revisions build a
-  schema from an empty database; no `create_all()` anywhere.
+- **Create bulk generation jobs** — `POST /api/v1/jobs` accepts a batch of recipients plus optional event details, returns `202` with a UUID job ID.
+- **Validate event details and recipient data** — batch size limits, non-blank names, well-formed emails, duplicate-email rejection, and length limits on `certificate_title` / `event_name`. The whole batch is validated before any row is written.
+- **Generate individual PDF certificates** — one predefined ReportLab template; the job's `certificate_title` and `event_name` are rendered into each certificate.
+- **Track job status, progress, successes, and failures** — per-job counters (`processed`, `succeeded`, `failed`), a `progress` value from `0.0` to `1.0`, and `created_at` / `started_at` / `finished_at` timestamps.
+- **Isolate failures per recipient** — a recipient whose PDF fails to render is recorded as `failed` with a sanitized `error_code`; the remaining recipients are still processed.
+- **List certificates with pagination and status filtering** — `page`, `page_size` (max 200), and optional `status` query parameters.
+- **Retrieve certificate metadata** — including a `download_url`; internal filesystem paths are never exposed.
+- **Download individual PDF files** — served as `application/pdf` with a filename; `409` if the certificate is not ready yet.
+- **Persist job and certificate metadata in PostgreSQL** — all state survives application restarts (local PostgreSQL in development, Neon in production).
+- **Run database migrations with Alembic** — two versioned revisions build a schema from an empty database; no `create_all()` anywhere.
 - **Health endpoint with a database connectivity check.**
 
-Not included (and not claimed): Excel/CSV import, ZIP downloads, email
-delivery, authentication, or a frontend.
+Not included (and not claimed): Excel/CSV import, ZIP downloads, email delivery, authentication, or a frontend.
 
 ## Architecture
 
 ### Request flow
 
-```
+```text
 Client
   → FastAPI routes (app/api/routes)          HTTP, status codes, response shaping
-  → Pydantic schemas (app/schemas)           request validation, response models
-  → SQLAlchemy models (app/models)           persistence in PostgreSQL
-  → background processor (app/workers)       one fresh DB session per job,
-  → ReportLab (app/services/pdf_service)     one short transaction per recipient,
-  → file storage (STORAGE_DIR)               PDF written outside any transaction
-Client ← certificate retrieval endpoints     status, list, metadata, download
+  → Pydantic schemas (app/schemas)            request validation, response models
+  → SQLAlchemy models (app/models)            persistence in PostgreSQL
+  → background processor (app/workers)        one fresh DB session per job
+  → ReportLab (app/services/pdf_service)      one short transaction per recipient
+  → file storage (STORAGE_DIR)                PDF written outside any transaction
+
+Client ← certificate retrieval endpoints      status, list, metadata, download
 ```
 
-`POST /api/v1/jobs` validates and persists the job plus one pending
-certificate row per recipient in a single short insert-only transaction,
-returns `202`, and only then schedules `process_job` through FastAPI
-`BackgroundTasks`. The worker creates its **own** database session, marks the
-job `processing`, and walks each certificate independently: mark
-`processing` → commit → render the PDF → commit with `succeeded` (or roll
-back and record `failed`). A transaction is never held open across PDF
-rendering, and a certificate is only ever marked `succeeded` after its file
-has been fully written (atomic temp-file + `os.replace`).
+`POST /api/v1/jobs` validates and persists the job plus one pending certificate row per recipient in a single short insert-only transaction, returns `202`, and only then schedules `process_job` through FastAPI `BackgroundTasks`.
+
+The worker creates its **own** database session, marks the job `processing`, and walks each certificate independently: mark `processing` → commit → render the PDF → commit with `succeeded` (or roll back and record `failed`).
+
+A transaction is never held open across PDF rendering, and a certificate is only ever marked `succeeded` after its file has been fully written (atomic temp-file + `os.replace`).
 
 ### Project structure
 
-```
+```text
 app/
 ├── main.py                   # app factory, routers, safe global error handler
 ├── config.py                 # pydantic-settings + DATABASE_URL normalization
@@ -227,34 +191,31 @@ app/
 │   └── storage.py            # internal file paths (never exposed)
 ├── workers/job_processor.py  # background loop with per-recipient isolation
 └── api/routes/               # jobs.py, certificates.py, health.py
+
 templates/certificate_layout.py   # the single predefined certificate template
-alembic/                      # versioned migrations (2 revisions)
-tests/                        # pytest suite (58 tests)
-docker/                       # PostgreSQL init script (creates test database)
+alembic/                          # versioned migrations (2 revisions)
+tests/                            # pytest suite (58 tests)
+docker/                           # PostgreSQL init script (creates test database)
 Dockerfile, docker-compose.yml, render.yaml
 ```
 
 ### Data model and job lifecycle
 
-**`jobs`** — `id (UUID PK)`, `certificate_title`, `event_name`, `status`,
-`total_count`, `processed_count`, `succeeded_count`, `failed_count`,
-`created_at`, `started_at`, `finished_at`.
+**`jobs`** — `id (UUID PK)`, `certificate_title`, `event_name`, `status`, `total_count`, `processed_count`, `succeeded_count`, `failed_count`, `created_at`, `started_at`, `finished_at`.
 
-**`certificates`** — `id (UUID PK)`, `job_id (FK → jobs, CASCADE)`,
-`recipient_name`, `email`, `status`, `error_code` (sanitized),
-`file_size_bytes`, `created_at`, `generated_at`.
+**`certificates`** — `id (UUID PK)`, `job_id (FK → jobs, CASCADE)`, `recipient_name`, `email`, `status`, `error_code` (sanitized), `file_size_bytes`, `created_at`, `generated_at`.
 
-```
+```text
 Job:       pending → processing → completed
                                       → completed_with_errors   (some failed)
                                       → failed                  (loop-level crash)
+
 Certificate: pending → processing → succeeded | failed
 
 progress = processed_count / total_count        (0.0 – 1.0)
 ```
 
-Counters are incremented in the same transaction that persists each
-certificate's terminal state, so reported progress always matches reality.
+Counters are incremented in the same transaction that persists each certificate's terminal state, so reported progress always matches reality.
 
 ### Mermaid diagram
 
@@ -304,7 +265,9 @@ Base URL (local): `http://localhost:8000` · Interactive docs: `/docs`
 Checks database connectivity (`SELECT 1`).
 
 ```json
-{"status": "ok"}
+{
+  "status": "ok"
+}
 ```
 
 `503 {"detail": "Database unavailable"}` if the database cannot be reached.
@@ -321,8 +284,7 @@ Request body:
 | `certificate_title` | no | 1–100 chars, default `CERTIFICATE OF ACHIEVEMENT` |
 | `event_name` | no | 1–150 chars, default `the program` |
 
-The **entire** request is validated before anything is written: a `422`
-response means zero job and zero certificate rows were created.
+The **entire** request is validated before anything is written: a `422` response means zero job and zero certificate rows were created.
 
 `202 Accepted`:
 
@@ -353,16 +315,13 @@ response means zero job and zero certificate rows were created.
 }
 ```
 
-`status` is one of `pending`, `processing`, `completed`,
-`completed_with_errors`, `failed`. `progress` equals
-`processed_count / total_count`. `started_at` / `finished_at` are `null`
-until processing begins / ends. Unknown or malformed IDs → `404` /
-`422`.
+`status` is one of `pending`, `processing`, `completed`, `completed_with_errors`, `failed`.
+
+`progress` equals `processed_count / total_count`. `started_at` / `finished_at` are `null` until processing begins / ends. Unknown or malformed IDs → `404` / `422`.
 
 ### `GET /api/v1/jobs/{job_id}/certificates`
 
-Query parameters: `page` (≥ 1, default 1), `page_size` (1–200, default 50),
-`status` (optional: `pending`, `processing`, `succeeded`, `failed`).
+Query parameters: `page` (≥ 1, default 1), `page_size` (1–200, default 50), `status` (optional: `pending`, `processing`, `succeeded`, `failed`).
 
 `200 OK`:
 
@@ -372,16 +331,16 @@ Query parameters: `page` (≥ 1, default 1), `page_size` (1–200, default 50),
   "items": [
     {
       "certificate_id": "2d50cb5f-c4f7-4266-be89-04fcc05263ee",
-      "recipient_name": "Aarav Mehta",
-      "email": "aarav.mehta@example.com",
+      "recipient_name": "Rohan Patil",
+      "email": "rohan.patil@example.com",
       "status": "succeeded",
       "error_code": null,
       "generated_at": "2026-10-09T07:15:46.440205Z"
     },
     {
       "certificate_id": "fc9abb43-073a-459b-918f-95cd9c9ba662",
-      "recipient_name": "Diya Sharma",
-      "email": "diya.sharma@example.com",
+      "recipient_name": "Ananya Deshmukh",
+      "email": "ananya.deshmukh@example.com",
       "status": "succeeded",
       "error_code": null,
       "generated_at": "2026-10-09T07:15:46.454771Z"
@@ -400,8 +359,8 @@ Query parameters: `page` (≥ 1, default 1), `page_size` (1–200, default 50),
 ```json
 {
   "certificate_id": "2d50cb5f-c4f7-4266-be89-04fcc05263ee",
-  "recipient_name": "Aarav Mehta",
-  "email": "aarav.mehta@example.com",
+  "recipient_name": "Rohan Patil",
+  "email": "rohan.patil@example.com",
   "status": "succeeded",
   "error_code": null,
   "generated_at": "2026-10-09T07:15:46.440205Z",
@@ -412,31 +371,22 @@ Query parameters: `page` (≥ 1, default 1), `page_size` (1–200, default 50),
 }
 ```
 
-A failed certificate reports `"status": "failed"` with the sanitized
-`"error_code": "GENERATION_FAILED"` — internal exception details are logged
-server-side only.
+A failed certificate reports `"status": "failed"` with the sanitized `"error_code": "GENERATION_FAILED"` — internal exception details are logged server-side only.
 
 ### `GET /api/v1/certificates/{certificate_id}/download`
 
-`200 OK` with `Content-Type: application/pdf` and
-`Content-Disposition: attachment; filename="certificate-<id>.pdf"`.
+`200 OK` with `Content-Type: application/pdf` and `Content-Disposition: attachment; filename="certificate-<id>.pdf"`.
 
 - Certificate not `succeeded` yet → `409 {"detail": "Certificate is not ready for download"}`
-- Unknown ID → `404`; record exists but the file is gone (e.g. after a
-  redeployment) → `404 {"detail": "Certificate file not available"}`
+- Unknown ID → `404`; record exists but the file is gone (e.g. after a redeployment) → `404 {"detail": "Certificate file not available"}`
 
 ### Error format
 
-All errors use FastAPI's standard shape: `{"detail": "..."}` with `422`
-(validation), `404` (not found), `409` (conflict), `503` (database
-unavailable). Internal paths, tracebacks, and raw exception messages are
-never returned.
+All errors use FastAPI's standard shape: `{"detail": "..."}` with `422` (validation), `404` (not found), `409` (conflict), `503` (database unavailable). Internal paths, tracebacks, and raw exception messages are never returned.
 
 ## Quick start — local development
 
-Prerequisites: **Python 3.11+**, **Docker with Docker Compose**. Commands
-below are for Linux (tested on Fedora); they are unchanged on macOS/WSL
-except for your package manager.
+Prerequisites: **Python 3.11+**, **Docker with Docker Compose**. Commands below are for Linux (tested on Fedora); they are unchanged on macOS/WSL except for your package manager.
 
 ```bash
 # 1. Clone the repository
@@ -470,37 +420,38 @@ pytest
 ```
 
 On Fedora, install the prerequisites first if needed:
-`sudo dnf install python3 docker docker-compose` (or use Docker's official
-install instructions), then add your user to the `docker` group.
+
+```bash
+sudo dnf install python3 docker docker-compose
+```
+
+Alternatively, use Docker's official installation instructions, then add your user to the `docker` group.
 
 Alternative — run the API and database fully in containers:
 
 ```bash
-docker compose up --build    # API on http://localhost:8000, PostgreSQL on 5432
+docker compose up --build
 ```
 
-> `docker-compose.yml` is for **local development and tests only**. Production
-> uses Neon PostgreSQL on Render — see the [deployment guide](#deployment-guide).
+API: `http://localhost:8000` · PostgreSQL: port `5432`.
+
+> `docker-compose.yml` is for **local development and tests only**. Production uses Neon PostgreSQL on Render — see the [deployment guide](#deployment-guide).
 
 ## Example: create a bulk job
 
-The example below is copy-pasteable against the local server
-(`http://localhost:8000`) — swap the base URL for
-`https://bulk-certificate-generator-vzzp.onrender.com` to run it against the
-deployed API. Replace every placeholder ID with the actual UUIDs returned by
-your own requests.
+The example below is copy-pasteable against the local server (`http://localhost:8000`) — swap the base URL for `https://bulk-certificate-generator-vzzp.onrender.com` to run it against the deployed API. Replace every placeholder ID with the actual UUIDs returned by your own requests.
 
 ```bash
 BASE=http://localhost:8000
 
-curl -X POST $BASE/api/v1/jobs \
+curl -X POST "$BASE/api/v1/jobs" \
   -H 'Content-Type: application/json' \
   -d '{
         "event_name": "Python Workshop 2026",
         "certificate_title": "Certificate of Participation",
         "recipients": [
-          {"name": "Aarav Mehta", "email": "aarav.mehta@example.com"},
-          {"name": "Diya Sharma", "email": "diya.sharma@example.com"}
+          {"name": "Rohan Patil", "email": "rohan.patil@example.com"},
+          {"name": "Ananya Deshmukh", "email": "ananya.deshmukh@example.com"}
         ]
       }'
 ```
@@ -515,11 +466,10 @@ curl -X POST $BASE/api/v1/jobs \
 }
 ```
 
-Poll job status (substitute your `job_id`; processing takes well under a
-second for small batches):
+Poll job status (substitute your `job_id`; processing takes well under a second for small batches):
 
 ```bash
-curl $BASE/api/v1/jobs/2a558eff-252a-41d3-972b-d839bdb6431f
+curl "$BASE/api/v1/jobs/2a558eff-252a-41d3-972b-d839bdb6431f"
 ```
 
 ```json
@@ -527,250 +477,4 @@ curl $BASE/api/v1/jobs/2a558eff-252a-41d3-972b-d839bdb6431f
   "job_id": "2a558eff-252a-41d3-972b-d839bdb6431f",
   "status": "completed",
   "total_count": 2,
-  "processed_count": 2,
-  "succeeded_count": 2,
-  "failed_count": 0,
-  "progress": 1.0,
-  "created_at": "2026-10-09T07:15:46.391610Z",
-  "started_at": "2026-10-09T07:15:46.416809Z",
-  "finished_at": "2026-10-09T07:15:46.459942Z"
-}
-```
-
-List the certificates and pick an ID (substitute your `job_id`):
-
-```bash
-curl "$BASE/api/v1/jobs/2a558eff-252a-41d3-972b-d839bdb6431f/certificates?page=1&page_size=50"
-```
-
-```json
-{
-  "job_id": "2a558eff-252a-41d3-972b-d839bdb6431f",
-  "items": [
-    {
-      "certificate_id": "2d50cb5f-c4f7-4266-be89-04fcc05263ee",
-      "recipient_name": "Aarav Mehta",
-      "email": "aarav.mehta@example.com",
-      "status": "succeeded",
-      "error_code": null,
-      "generated_at": "2026-10-09T07:15:46.440205Z"
-    },
-    {
-      "certificate_id": "fc9abb43-073a-459b-918f-95cd9c9ba662",
-      "recipient_name": "Diya Sharma",
-      "email": "diya.sharma@example.com",
-      "status": "succeeded",
-      "error_code": null,
-      "generated_at": "2026-10-09T07:15:46.454771Z"
-    }
-  ],
-  "total": 2,
-  "page": 1,
-  "page_size": 50
-}
-```
-
-Retrieve one certificate's metadata (substitute your `certificate_id`):
-
-```bash
-curl $BASE/api/v1/certificates/2d50cb5f-c4f7-4266-be89-04fcc05263ee
-```
-
-```json
-{
-  "certificate_id": "2d50cb5f-c4f7-4266-be89-04fcc05263ee",
-  "recipient_name": "Aarav Mehta",
-  "email": "aarav.mehta@example.com",
-  "status": "succeeded",
-  "error_code": null,
-  "generated_at": "2026-10-09T07:15:46.440205Z",
-  "job_id": "2a558eff-252a-41d3-972b-d839bdb6431f",
-  "file_size_bytes": 2109,
-  "created_at": "2026-10-09T07:15:46.398056Z",
-  "download_url": "/api/v1/certificates/2d50cb5f-c4f7-4266-be89-04fcc05263ee/download"
-}
-```
-
-Download the PDF (writes `certificate-<id>.pdf` to the current directory):
-
-```bash
-curl -OJ $BASE/api/v1/certificates/2d50cb5f-c4f7-4266-be89-04fcc05263ee/download
-# HTTP 200 · Content-Type: application/pdf ·
-# Content-Disposition: attachment; filename="certificate-2d50cb5f-....pdf"
-```
-
-## Database and configuration
-
-Configuration is loaded by `pydantic-settings` from environment variables
-(overriding an optional local `.env`). See [`.env.example`](.env.example) —
-it contains **only local development placeholders, never real credentials**,
-and `.env` is git-ignored.
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABASE_URL` | yes (production) | `postgresql+psycopg://certgen:certgen@localhost:5432/certgen` | PostgreSQL connection string. `postgres://` and `postgresql://` schemes are automatically normalized to SQLAlchemy's `postgresql+psycopg://`; query parameters such as `sslmode=require` are preserved. |
-| `MAX_BATCH_SIZE` | no | `100` | Maximum recipients accepted in one job. |
-| `STORAGE_DIR` | no | `storage/certificates` | Internal directory for generated PDFs. Never exposed through the API. |
-| `LOG_LEVEL` | no | `INFO` | Python logging level. |
-| `PORT` | set by Render | `8000` | The container binds `0.0.0.0:$PORT`; Render injects its own value (default `10000`). Not read by the app itself. |
-
-**Neon on Render, without exposing credentials:** the Neon connection string is
-stored **only** as the `DATABASE_URL` environment variable in the Render
-dashboard. In `render.yaml` it is declared with `sync: false`, so Render prompts
-for the value and never writes it into the repository. The application and
-Alembic both read the same setting (`get_settings().database_url`), so
-migrations and the running API always target the same database. Never commit a
-real connection string, and never paste one into an issue or the README.
-
-## Deployment guide
-
-Production topology: **Render Web Service (Docker) + Neon PostgreSQL**. There
-is no local PostgreSQL container in production.
-
-### 1. Connect the repository
-
-Render Dashboard → **New → Blueprint** → connect
-<https://github.com/IrfanNaikwade28/BulkCertificateGenerator>. Render detects
-the included [`render.yaml`](render.yaml):
-
-- `runtime: docker`, `dockerfilePath: ./Dockerfile`, `plan: free`
-- `healthCheckPath: /health`
-- `DATABASE_URL` with `sync: false` (secret, entered in the dashboard)
-- non-secret defaults: `LOG_LEVEL=INFO`, `MAX_BATCH_SIZE=100`,
-  `STORAGE_DIR=/app/storage/certificates`
-
-### 2. Configure `DATABASE_URL` as a secret
-
-When prompted (or under the service's **Environment** tab), paste your Neon
-connection string (`postgres://…?sslmode=require`) as the value of
-`DATABASE_URL`. It lives only in Render — the Dockerfile defines no build
-`ARG` and `.dockerignore` excludes `.env`, so the secret never enters the
-image or Git.
-
-### 3. Alembic migration workflow
-
-The container start command in the `Dockerfile` is:
-
-```dockerfile
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
-```
-
-So on every deploy (with the single free-plan instance) migrations run
-**exactly once, before uvicorn starts serving traffic**. Alembic reads the
-same `DATABASE_URL` as the app. To migrate explicitly instead — recommended
-once before your first deploy — run from your machine:
-
-```bash
-DATABASE_URL='postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require' \
-  alembic upgrade head
-```
-
-or use Render Dashboard → **Shell** → `alembic upgrade head`. Never use
-`Base.metadata.create_all()`; if you scale beyond one instance, remove the
-migration from the start command so multiple workers never run DDL
-concurrently (e.g. use Render's Pre Deploy Command).
-
-### 4. Verify the deployed API
-
-```bash
-curl https://bulk-certificate-generator-vzzp.onrender.com/health
-# → 200 {"status":"ok"}   (503 {"detail":"Database unavailable"} if Neon is down)
-
-# Interactive docs
-# https://bulk-certificate-generator-vzzp.onrender.com/docs
-
-# Smoke test
-curl -X POST https://bulk-certificate-generator-vzzp.onrender.com/api/v1/jobs \
-  -H 'Content-Type: application/json' \
-  -d '{"event_name":"Python Workshop 2026",
-       "certificate_title":"Certificate of Participation",
-       "recipients":[{"name":"Test User","email":"test@example.com"}]}'
-# → 202 {"job_id":"...","status":"pending","total_count":1}
-```
-
-Render uses `/health` as the service health check for the blueprint; a `503`
-there marks the instance unhealthy.
-
-## Design decisions and trade-offs
-
-**Why a relational database.** Jobs and certificates have a strict one-to-many
-relationship with referential integrity, cascading deletes, and
-per-recipient counters that must stay consistent with row states. PostgreSQL
-gives exactly that (UUID keys, foreign keys, transactional counter updates),
-and Alembic makes the schema reproducible from empty.
-
-**Why background processing.** Generating N PDFs synchronously inside the
-request would block clients for the whole batch. `BackgroundTasks` lets the
-API validate, persist, and return `202` in milliseconds while rendering
-continues behind it — with no additional infrastructure.
-
-**Why each recipient is handled independently.** Every certificate is wrapped
-in its own `try/except` and its own short transaction. A render error marks
-that one certificate `failed` (sanitized `error_code`) and the loop moves on;
-failures are counted so the job finishes as `completed_with_errors` rather
-than aborting.
-
-**Why rendering and transactions are separated.** Holding a database
-transaction open across CPU-bound PDF rendering would pin connections and
-risk long lock times. The worker commits the `processing` state first,
-renders with no open transaction, then commits the final state. File writes
-are atomic (temp file + `os.replace`), and `succeeded` is only persisted
-after the file fully exists — so a certificate is never marked successful
-without its PDF.
-
-**Why Alembic.** Schema changes must be explicit, versioned, and replayable
-against a fresh database. Two migrations take an empty Neon database to
-`head` deterministically, and the test suite runs the same migrations on
-every test session.
-
-### Current limitations
-
-- **`BackgroundTasks` is in-process, not a durable queue.** Jobs are held in
-  application memory. There is no retry, no resume, and no cross-instance
-  visibility.
-- **A restart can strand jobs.** If the process restarts mid-job, remaining
-  certificates stay `pending` and nothing automatically picks them up (a
-  crash of the loop marks the job `failed`). Database metadata itself is
-  unaffected.
-- **Render's local filesystem is ephemeral.** PDFs live under `STORAGE_DIR`
-  inside the container, so a redeploy or restart can delete previously
-  generated files while their metadata remains in Neon. Downloads then
-  return a graceful `404 "Certificate file not available"` — never a path
-  leak or a 500.
-- **Not production-grade durability.** Persistent object storage (or a
-  persistent disk) plus a durable task queue are the correct long-term
-  answers; **neither is implemented today**.
-
-## Testing
-
-```bash
-docker compose up -d db   # the suite needs the local PostgreSQL
-pytest
-```
-
-**Result: `58 passed`** (verified by running the full suite; takes ~3 seconds
-once the database is up). The suite uses the dedicated `certgen_test` database
-created by `docker/initdb` and a temporary storage directory — your local data
-is untouched, and migrations are applied by the test session fixture.
-
-| Area | File |
-|---|---|
-| Health endpoint | `tests/test_health.py` |
-| Job creation — 202, UUIDs, persisted rows, background completion | `tests/test_job_creation.py` |
-| Request validation — batch limits, emails, duplicates, blanks, types, title/event rules | `tests/test_validation.py` |
-| Status, counters, progress fraction, timestamps | `tests/test_progress_and_status.py` |
-| Per-recipient failure isolation + sanitized errors | `tests/test_failure_isolation.py` |
-| Certificate listing, pagination, status filter | `tests/test_certificate_listing.py` |
-| Metadata shape, PDF downloads, path/traceback leakage checks | `tests/test_certificate_metadata_and_download.py` |
-| PDF content — submitted title/event rendered, defaults kept | `tests/test_pdf_content.py` |
-| `DATABASE_URL` normalization and settings behaviour | `tests/test_config.py` |
-
-## Future improvements
-
-The following are **future work, not current features**:
-
-- Durable background workers (database-backed queue or external task system)
-- Persistent object storage for generated PDFs (or a Render persistent disk)
-- Bulk ZIP download of a job's certificates
-- CSV/XLSX recipient import
-- Authentication and rate limiting
+  "processed_coun
